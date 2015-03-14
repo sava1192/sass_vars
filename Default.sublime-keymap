@@ -1,0 +1,4 @@
+[{
+    "keys": ["ctrl+shift+l"],
+    "command": "sass_vars"
+}]
