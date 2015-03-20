@@ -7,7 +7,6 @@ variables = []
 nice_path = True
 
 class SassVarsCommand(sublime_plugin.TextCommand):
-
   def run(self, edit):
     self.clean().build_index().show_panel()
 
@@ -15,43 +14,40 @@ class SassVarsCommand(sublime_plugin.TextCommand):
     del variables[:]
     return self
 
-  def show_panel(self):
-    def emptyF():
-      pass
-
-    def show(var):
-      path = var.get('file')
-      if nice_path:
-        grand_parent = os.path.join(os.path.dirname(path), os.pardir)
-        path = os.path.relpath(path, grand_parent) + ' : ' + str(var.get('line'))
-      else:
-        path = str(var.get('line')) + ' : ' + path
-
-      return [var.get('name'), var.get('value'), path]
-
-    def highlight(arg):
-      print(arg)
-
-    def open_definition(index):
-      var = variables[index]
-      # print(var.get('line'), var.get('file'))
-      view = self.view.window().open_file(var.get('file'))
-      point = view.text_point(var.get('line') - 1, 0)
-
-      view.sel().clear()
-      if view == self.view.window().active_view():
-        print('good')
-      view.sel().add(sublime.Region(point))
-      print(point, var.get('line'))
-      view.show(point)
-
-    self.view.window().show_quick_panel([show(var) for var in variables], open_definition)
-
   def build_index(self):
     self.process_folder(self.get_current_folder())
     for var in variables:
       self.process_variable(var, 100)
     return self
+
+  def show_panel(self):
+    window = self.view.window()
+    rezult = [self.get_panel_item(var) for var in variables]
+    window.show_quick_panel(rezult, self.show_var_declaration)
+
+  def show_var_declaration(self, index):
+    var = variables[index]
+    view = self.view.window().open_file(var.get('file'))
+    point = view.text_point(var.get('line') - 1, 0)
+    view.sel().clear()
+    # if view == self.view.window().active_view():
+    #   print('good')
+    view.sel().add(sublime.Region(point))
+    print(point, var.get('line'))
+    view.show(point)
+
+  def get_panel_item(self, var):
+    path = var.get('file')
+    if nice_path:
+      dir = os.path.dirname(path)
+      grand_parent = os.path.join(dir, os.pardir)
+      path = ''.join([
+        os.path.relpath(path,grand_parent),
+        ' : ',
+        str(var.get('line'))])
+    else:
+      path = str(var.get('line')) + ' : ' + path
+    return [var.get('name'), var.get('value'), path]
 
   def get_current_folder (self):
     cur_file = self.view.file_name()
@@ -70,14 +66,17 @@ class SassVarsCommand(sublime_plugin.TextCommand):
   def process_file (self, file_name):
     if file_name.endswith(extensions):
       with open(file_name, 'r') as file:
-        # nice_path = os.path.relpath(file_name, )
-        # print(os.path.abspath(os.path.join(file_name, os.pardir)))
         for i, line in enumerate(file.readlines()):
           var = re_line.findall(line)
           if len(var):
-            variables.append({'name': var[0][0], 'value': var[0][1], 'file': file_name, 'line': i + 1})
-        # variant without reading each line, but need some very cool regex
-        # but maybe it is not faster? or regex for custom number of groups cant
+            variables.append({
+              'name': var[0][0],
+              'value': var[0][1],
+              'file': file_name,
+              'line': i + 1})
+        # variant without reading each line, but need some
+        # very cool regex but maybe it is not faster?
+        # or regex for custom number of groups cant
         # be done?
         # line_num = 1
         # prev_end = 0
@@ -92,17 +91,6 @@ class SassVarsCommand(sublime_plugin.TextCommand):
 
 # for future use
 # all that staff is unaavaibale on 3065 build
-def find_variables(variable):
-  return [variable]
-
-def show_popup(variable, view):
-  def insert_variable(index):
-    print(index, vars[index])
-
-  vars = find_variables(variable)
-  if vars:
-    view.window().show_quick_panel(vars, insert_variable)
-
 
 def get_selected_variable(view):
   sel = view.sel()[0]
