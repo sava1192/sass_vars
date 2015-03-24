@@ -5,6 +5,8 @@ re_line = re.compile(r'(\$[\w\-]+)\s*:\s*([^\n;]+)', re.I)
 re_var = re.compile(r'\$[\w\-]*')
 variables = []
 nice_path = True
+#global dictionary for cross-file communication
+goto = {}
 
 class SassVarsCommand(sublime_plugin.TextCommand):
   def run(self, edit):
@@ -27,27 +29,24 @@ class SassVarsCommand(sublime_plugin.TextCommand):
 
   def show_var_declaration(self, index):
     var = variables[index]
-    view = self.view.window().open_file(var.get('file'))
-    point = view.text_point(var.get('line') - 1, 0)
-    view.sel().clear()
-    # if view == self.view.window().active_view():
-    #   print('good')
-    view.sel().add(sublime.Region(point))
-    print(point, var.get('line'))
-    view.show(point)
+    view = self.view.window().open_file(var['file'])
+
+    goto['line'] = var['line']
+    goto['file'] = var['file']
+
 
   def get_panel_item(self, var):
-    path = var.get('file')
+    path = var['file']
     if nice_path:
       dir = os.path.dirname(path)
       grand_parent = os.path.join(dir, os.pardir)
       path = ''.join([
         os.path.relpath(path,grand_parent),
         ' : ',
-        str(var.get('line'))])
+        str(var['line'])])
     else:
-      path = str(var.get('line')) + ' : ' + path
-    return [var.get('name'), var.get('value'), path]
+      path = str(var['line']) + ' : ' + path
+    return [var['name'], var['value'], path]
 
   def get_current_folder (self):
     cur_file = self.view.file_name()
@@ -74,38 +73,35 @@ class SassVarsCommand(sublime_plugin.TextCommand):
               'value': var[0][1],
               'file': file_name,
               'line': i + 1})
-        # variant without reading each line, but need some
-        # very cool regex but maybe it is not faster?
-        # or regex for custom number of groups cant
-        # be done?
-        # line_num = 1
-        # prev_end = 0
-        # for match in re_var.finditer(file.read()):
-        #   line_num += match.string.count('\n', prev_end, match.start())
-        #   prev_end = match.end()
-        #   print(line_num, ':', match.groups())
+
   def process_variable (self, var, max):
     #recursive realization should be here
     pass
 
 
-# for future use
-# all that staff is unaavaibale on 3065 build
-
-def get_selected_variable(view):
-  sel = view.sel()[0]
-  line = view.line(sel.begin())
-  line_str = view.substr(line)
-  sel_pos = sel.begin() - line.begin()
-  matches = re_var.finditer(line_str)
-  for m in matches:
-    if m.start()-1 <= sel_pos and m.end() >= sel_pos:
-      return m.group()
+# def get_selected_variable(view):
+#   sel = view.sel()[0]
+#   line = view.line(sel.begin())
+#   line_str = view.substr(line)
+#   sel_pos = sel.begin() - line.begin()
+#   matches = re_var.finditer(line_str)
+#   for m in matches:
+#     if m.start()-1 <= sel_pos and m.end() >= sel_pos:
+#       return m.group()
 
 class Events(sublime_plugin.EventListener):
-  def on_modified_async(self, view):
-    return#!!!remove this
-    var = get_selected_variable(view)
-    print(var)
-    if var:
-      show_popup(var, view)
+  # def on_modified_async(self, view):
+  #   var = get_selected_variable(view)
+  #   print(var)
+  #   if var:
+  #     show_popup(var, view)
+
+  def on_load(self, view):
+    if view.file_name() == goto['file'] and goto['line'] > 1:
+      point = view.text_point(goto['line'] - 1, 0)
+      view.sel().clear()
+      view.sel().add(sublime.Region(point))
+      view.show(point)
+      #clean up
+      goto['file'] = None
+      goto['line'] = None
