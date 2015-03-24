@@ -1,0 +1,7 @@
+body {
+    $var1: black;
+    $var2: $var1;
+    $var3: $var1 $var2;
+
+    $var4: fade-out($var2, $var3);
+    $var5: $var1 $var2 $var3 $var4;}
