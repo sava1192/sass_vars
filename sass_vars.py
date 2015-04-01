@@ -10,7 +10,22 @@ goto = {}
 
 class SassVarsCommand(sublime_plugin.TextCommand):
   def run(self, edit):
-    self.clean().build_index().show_panel()
+    self.clean().load_settings().build_index().show_panel()
+    max
+
+  def lala():
+    return 'lala'
+
+  def load_settings(self):
+    # that should be rewritten, and added loading from settings
+    # self.settings = {
+    #   'show': {
+    #     'value_only': False,
+    #     'last_var': False,
+    #     'all_vars': True
+    #   }
+    # }
+    return self
 
   def clean(self):
     del variables[:]
@@ -18,39 +33,29 @@ class SassVarsCommand(sublime_plugin.TextCommand):
 
   def build_index(self):
     self.process_folder(self.get_current_folder())
-    for var in variables:
-      self.process_variable(var, 100)
+    self.process_variables()
+
     return self
 
   def show_panel(self):
     window = self.view.window()
-    rezult = [self.get_panel_item(var) for var in variables]
+    rezult = [[var.get('name'), var.get('value'), var.get('path')] for var in variables]
+    print(rezult)
     window.show_quick_panel(rezult, self.show_var_declaration)
 
   def show_var_declaration(self, index):
+    if index == -1:
+      return
+
     var = variables[index]
-    view = self.view.window().open_file(var['file'])
-
-    goto['line'] = var['line']
-    goto['file'] = var['file']
-
-
-  def get_panel_item(self, var):
-    path = var['file']
-    if nice_path:
-      dir = os.path.dirname(path)
-      grand_parent = os.path.join(dir, os.pardir)
-      path = ''.join([
-        os.path.relpath(path,grand_parent),
-        ' : ',
-        str(var['line'])])
-    else:
-      path = str(var['line']) + ' : ' + path
-    return [var['name'], var['value'], path]
+    view = self.view.window().open_file(var.get('file'))
+    goto['line'] = var.get('line')
+    goto['file'] = var.get('file')
 
   def get_current_folder (self):
     cur_file = self.view.file_name()
     max = -1
+
     for folder in self.view.window().folders():
       if cur_file.find(folder) > max:
         cur_folder = folder
@@ -72,11 +77,34 @@ class SassVarsCommand(sublime_plugin.TextCommand):
               'name': var[0][0],
               'value': var[0][1],
               'file': file_name,
-              'line': i + 1})
+              'line': i + 1
+            })
 
-  def process_variable (self, var, max):
-    #recursive realization should be here
-    pass
+  def process_variables(self):
+    for i, var in enumerate(variables):
+      var['path']  = self.get_var_path(var)
+      var['value'] = self.get_recursive_value(var, 100, i)
+
+  def get_var_path(self, var):
+    file = var.get('file')
+    if nice_path:
+      parent = os.path.join(os.path.dirname(file), os.pardir)
+      return os.path.relpath(file, parent) + ' : ' + str(var.get('line'))
+    else:
+      return str(var.get('line')) + ' : ' + file
+
+  def get_recursive_value (self, var, max, originalIndex):
+    # if max:
+    #   new_vars = re_var.findall(var.get('value'))
+    #   paths = []
+    #   if len(new_vars):
+    #     for new_var in new_vars:
+
+    #     return
+
+    # max recursion depth, or var in variable not found
+    # or whatever
+    return var.get('value')
 
 
 # def get_selected_variable(view):
@@ -97,8 +125,8 @@ class Events(sublime_plugin.EventListener):
   #     show_popup(var, view)
 
   def on_load(self, view):
-    if view.file_name() == goto['file'] and goto['line'] > 1:
-      point = view.text_point(goto['line'] - 1, 0)
+    if view.file_name() == goto.get('file') and goto.get('line') > 1:
+      point = view.text_point(goto.get('line') - 1, 0)
       view.sel().clear()
       view.sel().add(sublime.Region(point))
       view.show(point)
